@@ -6,7 +6,7 @@ A 2D learning project: you play a shark hunting a pod of fish. The long-term goa
 - A landing page where you pick the pod size (10–30 fish).
 - A bordered arena inside a 960×640 window, running at 60 FPS.
 - Fish that wander loosely as a pod at a constant speed, with solid bodies that never overlap.
-- A shark (about 4.5× the fish size) that follows your mouse or touchpad and eats any fish it touches.
+- A shark (about 3× the fish size) that never stops swimming. It turns toward your mouse or touchpad cursor, keeps going in its last direction once it reaches the cursor, and swims along the border when it hits a wall. It eats any fish it touches.
 - A game-over screen showing how long it took to eat the whole pod.
 
 The fish ignore the shark for now. Brains get added in milestone 2.

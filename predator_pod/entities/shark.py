@@ -3,35 +3,74 @@ import pygame
 from predator_pod import config
 from predator_pod.entities.drawing import draw_shark
 
+_AXES = [pygame.Vector2(1, 0), pygame.Vector2(-1, 0), pygame.Vector2(0, 1), pygame.Vector2(0, -1)]
+
 
 class Shark:
-    """Player-controlled shark that chases the mouse/touchpad cursor."""
+    """Player-controlled shark.
+
+    It always swims forward at a constant speed. Moving the cursor steers it
+    toward the cursor; once it reaches the cursor it keeps going in its last
+    direction. At a border it turns to swim along the wall in whichever
+    direction it was already facing.
+    """
 
     def __init__(self, pos):
         self.pos = pygame.Vector2(pos)
         self.radius = config.SHARK_RADIUS
+        self.speed = config.SHARK_SPEED
         self.heading = pygame.Vector2(1, 0)
         self.tail_phase = 0.0
+        self.chasing = False
+        self.last_mouse = None
 
-    def update(self, target, dt, arena):
-        target = pygame.Vector2(target)
+    def update(self, mouse, dt, arena):
+        mouse = pygame.Vector2(mouse)
+        if self.last_mouse is None or mouse.distance_to(self.last_mouse) > config.SHARK_MOUSE_MOVE_EPS:
+            self.chasing = True          # cursor moved: new command
+            self.last_mouse = mouse
+
+        target = pygame.Vector2(mouse)
         arena.clamp(target, self.radius)
-
         to_target = target - self.pos
-        dist = to_target.length()
-        step = config.SHARK_MAX_SPEED * dt
-        moving = dist > 1.0
-        if dist <= step:
-            self.pos = target
-        else:
-            self.pos += to_target / dist * step
-        arena.clamp(self.pos, self.radius)
 
-        if moving and dist > 4.0:
-            diff = (self.heading.angle_to(to_target) + 180) % 360 - 180
-            max_turn = config.SHARK_TURN_RATE * dt
-            self.heading = self.heading.rotate(max(-max_turn, min(max_turn, diff)))
-            self.tail_phase += dt * 8
+        if self.chasing:
+            if to_target.length() < self.radius:
+                self.chasing = False     # reached it: keep last direction
+            else:
+                diff = (self.heading.angle_to(to_target) + 180) % 360 - 180
+                max_turn = config.SHARK_TURN_RATE * dt
+                self.heading = self.heading.rotate(max(-max_turn, min(max_turn, diff)))
+
+        self.pos += self.heading * self.speed * dt
+        hit_x, hit_y = arena.clamp(self.pos, self.radius)
+        if hit_x or hit_y:
+            self._slide_along_wall(hit_x, hit_y, to_target, arena)
+
+        self.tail_phase += dt * 8
+
+    def _slide_along_wall(self, hit_x, hit_y, to_target, arena):
+        """Drop the part of the heading that points into the wall."""
+        h = pygame.Vector2(self.heading)
+        if hit_x:
+            h.x = 0
+        if hit_y:
+            h.y = 0
+        if h.length_squared() > 1e-4:
+            self.heading = h.normalize()
+            return
+        # Facing straight into a wall or a corner: pick an open direction
+        # along the wall, preferring the cursor's side.
+        prefer = to_target if to_target.length_squared() > 1e-6 else (
+            pygame.Vector2(arena.rect.center) - self.pos
+        )
+        open_dirs = []
+        for d in _AXES:
+            probe = self.pos + d
+            if arena.clamp(pygame.Vector2(probe), self.radius) == (False, False):
+                open_dirs.append(d)
+        if open_dirs:
+            self.heading = pygame.Vector2(max(open_dirs, key=lambda d: d.dot(prefer)))
 
     def draw(self, surface):
         draw_shark(

@@ -23,25 +23,26 @@ FISH_TURN_RATE = 240.0         # deg/s, how fast a fish can change heading
 FISH_WALL_MARGIN = 50.0        # px, start steering away from walls inside this
 
 # --- Shark ------------------------------------------------------------------
-SHARK_RADIUS = 32              # ~4.5x the fish radius, never grows
-SHARK_MAX_SPEED = 200.0        # px/s, shark chases the cursor at this speed
-SHARK_TURN_RATE = 360.0        # deg/s, visual heading smoothing
+SHARK_RADIUS = 22              # ~3x the fish radius, never grows
+SHARK_SPEED = 200.0            # px/s, the shark never stops swimming
+SHARK_TURN_RATE = 220.0        # deg/s, how fast it can turn toward the cursor
+SHARK_MOUSE_MOVE_EPS = 2.0     # px, cursor movement that counts as a new command
 
 # --- Physics ----------------------------------------------------------------
 OVERLAP_PASSES = 3             # overlap resolution iterations per frame
 MAX_DT = 0.05                  # clamp frame time to avoid huge jumps
 
 # --- Colors -----------------------------------------------------------------
-COLOR_BG = (14, 42, 71)
-COLOR_ARENA = (22, 74, 115)
-COLOR_BORDER = (200, 225, 240)
-COLOR_FISH = (255, 196, 61)
-COLOR_FISH_TAIL = (232, 150, 40)
-COLOR_SHARK = (130, 145, 160)
-COLOR_SHARK_BELLY = (205, 215, 222)
-COLOR_EYE = (20, 20, 25)
-COLOR_TEXT = (235, 242, 248)
-COLOR_TEXT_DIM = (150, 175, 195)
-COLOR_BUTTON = (36, 104, 156)
-COLOR_BUTTON_HOVER = (52, 136, 196)
-COLOR_ACCENT = (255, 196, 61)
+COLOR_BG = (6, 7, 10)
+COLOR_ARENA = (13, 15, 20)
+COLOR_BORDER = (70, 78, 92)
+COLOR_FISH = (240, 242, 245)
+COLOR_FISH_TAIL = (175, 180, 188)
+COLOR_SHARK = (250, 250, 252)
+COLOR_SHARK_BELLY = (200, 205, 212)
+COLOR_EYE = (10, 10, 12)
+COLOR_TEXT = (230, 233, 238)
+COLOR_TEXT_DIM = (120, 128, 140)
+COLOR_BUTTON = (28, 32, 40)
+COLOR_BUTTON_HOVER = (48, 54, 66)
+COLOR_ACCENT = (240, 242, 245)
