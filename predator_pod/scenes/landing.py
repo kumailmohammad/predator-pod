@@ -14,8 +14,9 @@ class LandingScene:
         self.slider = pygame.Rect(0, 0, 260, 8)
         self.slider.center = (cx, 330)
         self.dragging = False
-        self.play = Button("Play", (cx, 430))
-        self.quit = Button("Quit", (cx, 495))
+        self.play = Button("Play", (cx, 440))
+        self.reset = Button("Reset brain", (cx, 500), size=(200, 42), font_size=28)
+        self.quit = Button("Quit", (cx, 556), size=(200, 42), font_size=28)
 
     def _set_count(self, n):
         self.fish_count = max(config.FISH_MIN_COUNT, min(config.FISH_MAX_COUNT, n))
@@ -36,6 +37,8 @@ class LandingScene:
             self.game.start_play(self.fish_count)
         elif self.quit.clicked(event):
             self.game.running = False
+        elif self.reset.clicked(event):
+            self.game.learner.reset()
         elif self.minus.clicked(event):
             self._set_count(self.fish_count - 1)
         elif self.plus.clicked(event):
@@ -74,7 +77,7 @@ class LandingScene:
         )
         draw_text(
             surface,
-            "Move with the mouse or touchpad  -  Esc returns to menu",
+            "Steer with the mouse/touchpad or Left/Right (A/D)  -  Esc returns to menu",
             24,
             config.COLOR_TEXT_DIM,
             center=(cx, 225),
@@ -89,5 +92,7 @@ class LandingScene:
         draw_text(surface, str(config.FISH_MIN_COUNT), 22, config.COLOR_TEXT_DIM, center=(self.slider.left, 360))
         draw_text(surface, str(config.FISH_MAX_COUNT), 22, config.COLOR_TEXT_DIM, center=(self.slider.right, 360))
 
-        for b in (self.minus, self.plus, self.play, self.quit):
+        draw_text(surface, self.game.learner.status_text(), 24, config.COLOR_TEXT_DIM, center=(cx, 392))
+
+        for b in (self.minus, self.plus, self.play, self.reset, self.quit):
             b.draw(surface)

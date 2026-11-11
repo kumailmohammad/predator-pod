@@ -24,7 +24,8 @@ class Shark:
         self.chasing = False
         self.last_mouse = None
 
-    def update(self, mouse, dt, arena):
+    def update(self, mouse, dt, arena, turn=0.0):
+        """turn: -1 (left) .. 1 (right) from the keyboard; overrides the cursor."""
         mouse = pygame.Vector2(mouse)
         if self.last_mouse is None or mouse.distance_to(self.last_mouse) > config.SHARK_MOUSE_MOVE_EPS:
             self.chasing = True          # cursor moved: new command
@@ -34,7 +35,10 @@ class Shark:
         arena.clamp(target, self.radius)
         to_target = target - self.pos
 
-        if self.chasing:
+        if turn:
+            self.chasing = False
+            self.heading = self.heading.rotate(turn * config.SHARK_TURN_RATE * dt)
+        elif self.chasing:
             if to_target.length() < self.radius:
                 self.chasing = False     # reached it: keep last direction
             else:
