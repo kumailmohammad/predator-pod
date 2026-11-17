@@ -19,13 +19,16 @@ FISH_MAX_COUNT = 30
 FISH_DEFAULT_COUNT = 20
 FISH_RADIUS = 7                # body radius used for collisions
 FISH_SPEED = 120.0             # px/s, constant for every fish
-FISH_TURN_RATE = 240.0         # deg/s, how fast a fish can change heading
+FISH_TURN_RATE = 200.0         # deg/s, how fast a fish can change heading
 FISH_WALL_MARGIN = 50.0        # px, start steering away from walls inside this
 
 # --- Shark ------------------------------------------------------------------
 SHARK_RADIUS = 22              # ~3x the fish radius, never grows
-SHARK_SPEED = 200.0            # px/s, the shark never stops swimming
-SHARK_TURN_RATE = 220.0        # deg/s, how fast it can turn toward the cursor
+SHARK_SPEED = 200.0            # px/s, cruising speed (it never stops swimming)
+SHARK_MIN_SPEED_FACTOR = 0.45  # slows to 45% while turning hard -> tighter turns
+SHARK_TURN_RATE = 300.0        # deg/s, max turn speed
+SHARK_STEER_GAIN = 5.0         # turn speed per degree of error (smooth homing)
+SHARK_STEER_SMOOTHING = 10.0   # how fast turn speed and swim speed ease in (1/s)
 SHARK_MOUSE_MOVE_EPS = 2.0     # px, cursor movement that counts as a new command
 
 # --- Physics ----------------------------------------------------------------

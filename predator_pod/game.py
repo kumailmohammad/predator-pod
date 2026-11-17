@@ -3,7 +3,7 @@ import os
 import pygame
 
 from predator_pod import config
-from predator_pod.brains.evolution import PodLearner
+from predator_pod.brains.learner import Learner
 from predator_pod.scenes.game_over import GameOverScene
 from predator_pod.scenes.landing import LandingScene
 from predator_pod.scenes.play import PlayScene
@@ -17,7 +17,7 @@ class Game:
         self.screen = pygame.display.set_mode((config.WINDOW_WIDTH, config.WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
         self.running = True
-        self.learner = PodLearner.load_or_new()
+        self.learner = Learner.load_or_new()
         self.scene = LandingScene(self)
 
     def show_landing(self, fish_count=config.FISH_DEFAULT_COUNT):
@@ -26,8 +26,8 @@ class Game:
     def start_play(self, fish_count):
         self.scene = PlayScene(self, fish_count)
 
-    def show_game_over(self, fish_count, elapsed, mean_survival):
-        self.scene = GameOverScene(self, fish_count, elapsed, mean_survival)
+    def show_game_over(self, fish_count, elapsed, mean_survival, learned):
+        self.scene = GameOverScene(self, fish_count, elapsed, mean_survival, learned)
 
     def run(self):
         while self.running:

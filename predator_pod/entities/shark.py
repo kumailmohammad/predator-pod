@@ -9,10 +9,11 @@ _AXES = [pygame.Vector2(1, 0), pygame.Vector2(-1, 0), pygame.Vector2(0, 1), pyga
 class Shark:
     """Player-controlled shark.
 
-    It always swims forward at a constant speed. Moving the cursor steers it
-    toward the cursor; once it reaches the cursor it keeps going in its last
-    direction. At a border it turns to swim along the wall in whichever
-    direction it was already facing.
+    It always swims forward. Moving the cursor steers it smoothly toward the
+    cursor (it slows down in sharp turns, like a real animal, so it can turn
+    tightly); once it reaches the cursor it keeps going in its last direction.
+    At a border it turns to swim along the wall in whichever direction it was
+    already facing.
     """
 
     def __init__(self, pos):
@@ -23,6 +24,7 @@ class Shark:
         self.tail_phase = 0.0
         self.chasing = False
         self.last_mouse = None
+        self.turn_speed = 0.0      # deg/s, eased
 
     def update(self, mouse, dt, arena, turn=0.0):
         """turn: -1 (left) .. 1 (right) from the keyboard; overrides the cursor."""
@@ -37,15 +39,27 @@ class Shark:
 
         if turn:
             self.chasing = False
-            self.heading = self.heading.rotate(turn * config.SHARK_TURN_RATE * dt)
+            want_turn = turn * config.SHARK_TURN_RATE
         elif self.chasing:
             if to_target.length() < self.radius:
                 self.chasing = False     # reached it: keep last direction
+                want_turn = 0.0
             else:
                 diff = (self.heading.angle_to(to_target) + 180) % 360 - 180
-                max_turn = config.SHARK_TURN_RATE * dt
-                self.heading = self.heading.rotate(max(-max_turn, min(max_turn, diff)))
+                # Turn faster the further off-target, eased so it never jerks.
+                want_turn = max(-config.SHARK_TURN_RATE,
+                                min(config.SHARK_TURN_RATE, diff * config.SHARK_STEER_GAIN))
+        else:
+            want_turn = 0.0
 
+        # Ease turn speed and swim speed toward their targets.
+        ease = min(1.0, config.SHARK_STEER_SMOOTHING * dt)
+        self.turn_speed += (want_turn - self.turn_speed) * ease
+        sharpness = min(abs(self.turn_speed) / config.SHARK_TURN_RATE, 1.0)
+        want_speed = config.SHARK_SPEED * (1 - (1 - config.SHARK_MIN_SPEED_FACTOR) * sharpness)
+        self.speed += (want_speed - self.speed) * ease
+
+        self.heading = self.heading.rotate(self.turn_speed * dt)
         self.pos += self.heading * self.speed * dt
         hit_x, hit_y = arena.clamp(self.pos, self.radius)
         if hit_x or hit_y:
