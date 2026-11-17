@@ -25,6 +25,7 @@ class Shark:
         self.chasing = False
         self.last_mouse = None
         self.turn_speed = 0.0      # deg/s, eased
+        self.velocity = pygame.Vector2(0, 0)   # px/s, last frame's actual motion
 
     def update(self, mouse, dt, arena, turn=0.0):
         """turn: -1 (left) .. 1 (right) from the keyboard; overrides the cursor."""
@@ -60,10 +61,13 @@ class Shark:
         self.speed += (want_speed - self.speed) * ease
 
         self.heading = self.heading.rotate(self.turn_speed * dt)
+        before = pygame.Vector2(self.pos)
         self.pos += self.heading * self.speed * dt
         hit_x, hit_y = arena.clamp(self.pos, self.radius)
         if hit_x or hit_y:
             self._slide_along_wall(hit_x, hit_y, to_target, arena)
+        if dt > 0:
+            self.velocity = (self.pos - before) / dt
 
         self.tail_phase += dt * 8
 

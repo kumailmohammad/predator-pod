@@ -21,6 +21,10 @@ FISH_RADIUS = 7                # body radius used for collisions
 FISH_SPEED = 120.0             # px/s, constant for every fish
 FISH_TURN_RATE = 200.0         # deg/s, how fast a fish can change heading
 FISH_WALL_MARGIN = 50.0        # px, start steering away from walls inside this
+# Fast-start (C-start escape reflex): instant turn + short burst, then a cooldown.
+FISH_BURST_FACTOR = 2.5        # x FISH_SPEED while bursting
+FISH_BURST_TIME = 0.35         # s
+FISH_BURST_COOLDOWN = 3.0      # s before the next burst (muscle fatigue)
 
 # --- Shark ------------------------------------------------------------------
 SHARK_RADIUS = 22              # ~3x the fish radius, never grows

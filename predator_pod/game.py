@@ -26,14 +26,18 @@ class Game:
     def start_play(self, fish_count):
         self.scene = PlayScene(self, fish_count)
 
-    def show_game_over(self, fish_count, elapsed, mean_survival, learned):
-        self.scene = GameOverScene(self, fish_count, elapsed, mean_survival, learned)
+    def show_game_over(self, fish_count, elapsed, mean_survival, learned, stats=None):
+        self.scene = GameOverScene(self, fish_count, elapsed, mean_survival, learned, stats)
 
     def run(self):
         while self.running:
             dt = min(self.clock.tick(config.FPS) / 1000.0, config.MAX_DT)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    # Closing the window mid-round still learns from that round.
+                    finish = getattr(self.scene, "_finish_round", None)
+                    if finish:
+                        finish()
                     self.running = False
                 else:
                     self.scene.handle_event(event)

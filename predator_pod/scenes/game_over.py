@@ -8,12 +8,13 @@ from predator_pod.scenes.ui import Button, draw_text
 
 
 class GameOverScene:
-    def __init__(self, game, fish_count, elapsed, mean_survival, learned):
+    def __init__(self, game, fish_count, elapsed, mean_survival, learned, stats=None):
         self.game = game
         self.fish_count = fish_count
         self.elapsed = elapsed
         self.mean_survival = mean_survival
         self.learned = learned
+        self.stats = stats or {}
         cx = config.WINDOW_WIDTH // 2
         self.again = Button("Play again", (cx - 130, 580), size=(220, 46), font_size=30)
         self.menu = Button("Menu", (cx + 130, 580), size=(220, 46), font_size=30)
@@ -46,9 +47,22 @@ class GameOverScene:
             msg = f"Brain updated from this round. Rounds learned from: {L.rounds}"
         else:
             msg = "This round was too short to learn from."
-        draw_text(surface, msg, 26, config.COLOR_TEXT, center=(cx, 150))
+        draw_text(surface, msg, 26, config.COLOR_TEXT, center=(cx, 142))
+        if L.upgraded_from:
+            msg = "Brain upgraded with new senses and escape behaviors - earlier training kept."
+            draw_text(surface, msg, 20, config.COLOR_TEXT_DIM, center=(cx, 164))
 
-        chart = pygame.Rect(80, 190, config.WINDOW_WIDTH - 160, 300)
+        st = self.stats
+        if st:
+            line = (f"In a group {st['school_pct']:.0f}% of the time   -   "
+                    f"eaten at walls: {st['wall_deaths']}   -   fast-starts: {st['bursts']}")
+            draw_text(surface, line, 22, config.COLOR_TEXT, center=(cx, 186))
+            if st.get("top_actions"):
+                top = ", ".join(f"{n} {p:.0f}%" for n, p in st["top_actions"])
+                draw_text(surface, f"Top behaviors: {top}", 22, config.COLOR_TEXT_DIM,
+                          center=(cx, 208))
+
+        chart = pygame.Rect(80, 226, config.WINDOW_WIDTH - 160, 280)
         draw_chart(surface, chart, L.history)
         draw_text(surface, "Average fish survival per round (thin) and rolling average (thick)",
                   22, config.COLOR_TEXT_DIM, center=(cx, chart.bottom + 18))

@@ -36,7 +36,8 @@ class PlayScene:
         if not self.world.fishes:
             times = self.world.survival_times()
             learned = self._finish_round()
-            self.game.show_game_over(self.fish_count, self.world.elapsed, sum(times) / len(times), learned)
+            self.game.show_game_over(self.fish_count, self.world.elapsed, sum(times) / len(times),
+                                     learned, self.world.stats())
 
     def draw(self, surface):
         w = self.world
