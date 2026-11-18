@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 
 from predator_pod import config
-from predator_pod.brains.learner import ROLLING_WINDOW
+from predator_pod.brains.learner import ROLLING_WINDOW, training_running
 from predator_pod.scenes.play import format_time
 from predator_pod.scenes.ui import Button, draw_text
 
@@ -41,7 +41,9 @@ class GameOverScene:
                   f"   -   average fish survived {self.mean_survival:.1f} s",
                   28, config.COLOR_TEXT, center=(cx, 110))
 
-        if L.converged:
+        if not self.learned and training_running():
+            msg = "Training (train.py) is running, so this round wasn't saved to the brain."
+        elif L.converged:
             msg = f"Training finished: the brain stopped improving and is now frozen ({L.rounds} rounds)."
         elif self.learned:
             msg = f"Brain updated from this round. Rounds learned from: {L.rounds}"

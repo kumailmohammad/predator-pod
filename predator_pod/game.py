@@ -18,13 +18,33 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.learner = Learner.load_or_new()
+        self.brain_mtime = self._mtime()
         self.scene = LandingScene(self)
 
+    def _mtime(self):
+        try:
+            return self.learner.path.stat().st_mtime
+        except OSError:
+            return None
+
+    def refresh_brain(self):
+        """Pick up a better brain that train.py saved while the game was open."""
+        m = self._mtime()
+        if m != self.brain_mtime:
+            self.learner = Learner.load_or_new()
+            self.brain_mtime = self._mtime()
+
     def show_landing(self, fish_count=config.FISH_DEFAULT_COUNT):
+        self.refresh_brain()
         self.scene = LandingScene(self, fish_count)
 
     def start_play(self, fish_count):
+        self.refresh_brain()
         self.scene = PlayScene(self, fish_count)
+
+    def start_watch(self, fish_count):
+        self.refresh_brain()
+        self.scene = PlayScene(self, fish_count, watch=True)
 
     def show_game_over(self, fish_count, elapsed, mean_survival, learned, stats=None):
         self.scene = GameOverScene(self, fish_count, elapsed, mean_survival, learned, stats)

@@ -5,4 +5,9 @@ venv/
 .vscode/
 .idea/
 *.egg-info/
-checkpoints/
+models/checkpoints/
+models/logs/
+models/backups/
+models/.training.lock
+models/*.tmp.npz
+models/*.unreadable.npz

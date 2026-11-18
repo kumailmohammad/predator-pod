@@ -14,7 +14,6 @@ import numpy as np
 
 from predator_pod import config
 
-N_FEATURES_V1 = 18
 N_FEATURES = 31
 
 SHARK_CLOSE_SCALE = 60.0      # px, closeness = 1 / (1 + d / this)

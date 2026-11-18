@@ -17,8 +17,13 @@ ZIGZAG_ANGLE = 60.0           # deg off the straight escape line
 
 
 class World:
-    def __init__(self, learner, fish_count):
+    """One round. The shark is steered by the human (mouse/keys passed to
+    step) or by a controller (AI brain or scripted) with a .command() method."""
+
+    def __init__(self, learner, fish_count, shark_controller=None, greedy_fish=None):
         self.learner = learner
+        self.shark_controller = shark_controller
+        self.greedy_fish = greedy_fish
         self.arena = Arena()
         start = pygame.Vector2(self.arena.rect.left + 80, self.arena.rect.centery)
         self.shark = Shark(start)
@@ -67,7 +72,7 @@ class World:
         s = sense(self.fishes, self.shark, self.arena)
         rewards = L.reward(s.shark_dist, s.pod_dist, s.wall_dist, s.crowd_count, s.corner)
         ready = np.array([f.burst_ready for f in self.fishes])
-        actions, bursts, probs = self.learner.act(s.features, ready)
+        actions, bursts, probs = self.learner.act(s.features, ready, self.greedy_fish)
         for k, fish in enumerate(self.fishes):
             a, b = int(actions[k]), bool(bursts[k])
             self.episode.reward(fish.index, float(rewards[k]))
@@ -82,8 +87,10 @@ class World:
         self.decisions += len(self.fishes)
         self.grouped += int((s.crowd_count >= SCHOOL_MIN_NEIGHBORS).sum())
 
-    def step(self, dt, shark_target, shark_turn=0.0):
+    def step(self, dt, shark_target=None, shark_turn=0.0):
         self.elapsed += dt
+        if self.shark_controller is not None:
+            shark_target, shark_turn = self.shark_controller.command(self, dt)
         self.shark.update(shark_target, dt, self.arena, shark_turn)
 
         self.decision_timer -= dt
@@ -105,6 +112,8 @@ class World:
                 self.death_time[i] = self.elapsed
                 self.episode.reward(i, L.R_EATEN)
             self.fishes = [f for f in self.fishes if f.index not in gone]
+            if self.shark_controller is not None:
+                self.shark_controller.on_eat(len(eaten))
         return eaten
 
     def survival_times(self):

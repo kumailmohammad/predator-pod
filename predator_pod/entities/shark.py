@@ -28,15 +28,19 @@ class Shark:
         self.velocity = pygame.Vector2(0, 0)   # px/s, last frame's actual motion
 
     def update(self, mouse, dt, arena, turn=0.0):
-        """turn: -1 (left) .. 1 (right) from the keyboard; overrides the cursor."""
-        mouse = pygame.Vector2(mouse)
-        if self.last_mouse is None or mouse.distance_to(self.last_mouse) > config.SHARK_MOUSE_MOVE_EPS:
-            self.chasing = True          # cursor moved: new command
-            self.last_mouse = mouse
-
-        target = pygame.Vector2(mouse)
-        arena.clamp(target, self.radius)
-        to_target = target - self.pos
+        """mouse: cursor/target point, or None (AI steering with turn only).
+        turn: -1 (left) .. 1 (right), like the keyboard; overrides the cursor."""
+        if mouse is None:
+            self.chasing = False
+            to_target = pygame.Vector2(0, 0)
+        else:
+            mouse = pygame.Vector2(mouse)
+            if self.last_mouse is None or mouse.distance_to(self.last_mouse) > config.SHARK_MOUSE_MOVE_EPS:
+                self.chasing = True          # cursor moved: new command
+                self.last_mouse = mouse
+            target = pygame.Vector2(mouse)
+            arena.clamp(target, self.radius)
+            to_target = target - self.pos
 
         if turn:
             self.chasing = False

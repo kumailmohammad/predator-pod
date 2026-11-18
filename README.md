@@ -1,13 +1,19 @@
 # Predator-Pod
 
-A 2D learning project: you play a shark hunting a pod of fish. Every fish shares one neural-network brain. **It learns only from your games.** Each time a round ends, the brain updates its weights and biases from what happened, and the next round the fish are a little better at staying alive. When it stops improving, it freezes and saves itself.
+A 2D learning project: you play a shark hunting a pod of fish. Every fish shares one neural-network brain, and the goal is to train that brain until the pod is as hard as possible for a human to wipe out.
+
+The fish learn two ways:
+- **Automatically** (`python train.py`): an AI shark with its own neural network hunts the fish in thousands of headless rounds. Both sides learn at the same time, so each keeps forcing the other to improve.
+- **From your games:** every round you play also updates the fish brain.
 
 ## Run it
 ```bash
 python -m venv .venv
 .venv\Scripts\activate        # Windows  (macOS/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-python main.py
+python main.py          # play (or "Watch AI" to see the AI shark hunt the trained fish)
+python train.py         # automatic training, 30 min (Ctrl+C stops; run again to resume)
+python progress.py      # graphs of the prey and shark training (--live to auto-refresh)
 ```
 
 ## Controls
@@ -16,7 +22,7 @@ python main.py
 | Mouse / touchpad | Steer the shark toward the cursor |
 | Left / Right or A / D | Turn the shark |
 | Esc | Back to menu (a round of 5 s or more still counts for learning) |
-| Landing page | Pick 10–30 fish, Play, Reset brain |
+| Landing page | Pick 10–30 fish, Play, Watch AI, Reset brain (keeps a backup in `models/backups/`) |
 
 The shark never stops swimming. It keeps its last direction, slows down in sharp turns so it can turn tightly, and slides along walls.
 
@@ -69,8 +75,8 @@ About 7 times a second (every 0.15 s), each fish feeds its senses into the netwo
 
 Flash expansion, bait-balling and the vacuole aren't separate actions. They emerge when many fish combine flee, selfish herd and fountain at once.
 
-### How it learns from your play
-It uses reinforcement learning (policy gradient with PPO-style updates), in [predator_pod/brains/learner.py](predator_pod/brains/learner.py).
+### How the fish learn
+They use reinforcement learning (policy gradient with PPO-style updates). The network and rewards are in [predator_pod/brains/learner.py](predator_pod/brains/learner.py), and the PPO code is in [predator_pod/brains/ppo.py](predator_pod/brains/ppo.py).
 
 After every decision, a fish gets a **reward**. Here *threat* is 1 when the shark is on top of the fish and 0 when it's 250 px or more away.
 
@@ -84,28 +90,84 @@ After every decision, a fish gets a **reward**. Here *threat* is 1 when the shar
 | In a corner | −0.4 × (1 + threat) | Corners are death traps |
 | Getting eaten | −10 | The worst outcome |
 
-When your round ends, every decision is scored by the rewards that followed it. Decisions that turned out better than average become more likely, and worse ones less likely. The round's data is reused for a few passes of small, clipped updates, so one round teaches a lot without the network changing wildly. The brain is then saved to `models/pod_brain.npz`.
+When a round ends, every decision is scored by the rewards that followed it. Decisions that turned out better than average become more likely, and worse ones less likely. The data is reused for a few passes of small, clipped updates, so the network learns a lot without changing wildly.
 
-**Learning stops automatically** once the rolling 5-round average survival time hasn't improved by 3% for 10 rounds, with at least 20 rounds played. The brain is then frozen, and from then on every fish always picks its best behavior.
+**Learning from your games** stops automatically once the rolling 5-round average survival time of your rounds hasn't improved by 3% for 10 rounds, with at least 20 rounds played. From then on every fish always picks its best behavior. While `train.py` is running, your rounds aren't saved, so they can't overwrite the trainer's brain. The game tells you when this happens.
+
+## The AI shark (sparring partner)
+```
+29 inputs ──► 32 hidden neurons (tanh) ──► 5 turn commands (softmax)
+                                            hard left / left / straight / right / hard right
+```
+It decides 10 times a second and steers through **exactly the same physics as you do with the keyboard**: same speed, turn rate, slow-down in sharp turns and wall sliding. So the fish never learn to beat a shark that's stronger than a human could be. Its code is in [predator_pod/brains/shark_brain.py](predator_pod/brains/shark_brain.py) and [predator_pod/world/shark_sensors.py](predator_pod/world/shark_sensors.py).
+
+| Inputs (all in the shark's own frame: "ahead" and "to my right") | Count |
+|---|---|
+| Own speed and turn speed | 2 |
+| Distance to a wall along 5 rays (ahead, ahead-left, ahead-right, left, right) | 5 |
+| 3 nearest fish: direction and distance | 9 |
+| Nearest fish: its heading, how crowded it is, its distance to a wall, its fast-start ready | 5 |
+| Most isolated fish within 300 px: direction and distance | 3 |
+| Pod center: direction and distance, plus how spread out the pod is | 4 |
+| Fraction of fish left | 1 |
+
+| Shark reward | Amount |
+|---|---|
+| Eating a fish | +10 |
+| Getting closer to the nearest fish | potential-based shaping (can't be farmed by circling) |
+| Every decision | −0.02 (hunt fast) |
+
+## Automatic training: `python train.py`
+Self-play training is in [train.py](train.py) and [predator_pod/selfplay.py](predator_pod/selfplay.py).
+- **Each iteration** plays a batch of headless 60-second rounds in parallel (one process per CPU core, minus 2), with 10–30 fish. The opponents are:
+  - **60%** the current learning AI shark
+  - **20%** older AI sharks from a snapshot pool, so the fish don't forget how to beat old tactics
+  - **20%** scripted human-style sharks: *chase the nearest fish*, *chase the most isolated fish*, *intercept*. These steer with a target point, just like your cursor
+- Both brains are then updated with PPO.
+- **Every 10 iterations, a benchmark** runs. The fish play fixed-seed rounds against the 3 scripted sharks, and against the AI shark for reference. The brain the game uses, `models/pod_brain.npz`, is replaced **only when the scripted-shark score improves**, so the game always has the best fish so far.
+- **It stops** after `--minutes` (30 by default), or once the benchmark hasn't improved for `--patience` evaluations (15 by default). **Ctrl+C** stops cleanly. Running it again resumes from `models/checkpoints/`. If you played the game since the last run, it starts from your newer brain instead, so your games are never thrown away.
+
+Options: `--minutes N`, `--workers N`, `--patience N`, `--fresh-shark`.
+
+## Training graphs: `python progress.py`
+Opens a window and saves `models/logs/training_progress.png`. Use `--live` to refresh every 30 s while training runs.
+- **Prey:**
+  - benchmark survival against each test shark, with stars where a new best was saved
+  - survival during training
+  - schooling % and wall deaths
+- **Shark:**
+  - catches per minute
+  - reward per decision
+- **Your games:** fish survival in each round you played.
 
 **Where to see training:** the top of the play screen shows the brain's status and how many rounds it has learned from. After every round, the game-over screen shows the learning curve: average fish survival per round, plus a rolling average. If the line is going up, the fish are learning. It also shows how much of the time fish spent in a group, how many were eaten at walls, how many fast-starts they fired, and their top 3 behaviors.
 
-**Upgrades keep training.** A brain saved by an older version of the game (fewer senses or behaviors) is widened automatically when it loads. New inputs start with zero weight, and new behaviors start at about 10% of choices. What the fish already learned is kept. The round-17 brain is backed up as `models/pod_brain_backup_round17.npz`.
+**Upgrades keep training.** A brain saved by an older version of the game (fewer senses or behaviors) is widened automatically when it loads. New inputs start with zero weight, and new behaviors start at about 10% of choices. What the fish already learned is kept.
 
-**Reset brain** on the landing page starts over from an untrained brain. An untrained brain swims randomly, so the first few rounds look chaotic.
+**Reset brain** on the landing page starts over from an untrained brain, after copying the old one to `models/backups/pod_brain_before_reset.npz`.
 
 ## Code layout
 ```
-main.py              start the game
+main.py                   start the game
+train.py                  automatic self-play training
+progress.py               training graphs
 predator_pod/
-  config.py          sizes, speeds, colors, FPS
-  game.py            main loop and scenes
-  scenes/            landing, play, game over (with learning chart)
-  entities/          Fish, Shark, drawing
-  world/arena.py     border
-  world/physics.py   no-overlap rule, eating, spawning
-  world/sensors.py   the 31 inputs
-  world/simulation.py one round: decisions, rewards, collisions
-  brains/learner.py  the network, rewards, learning, convergence, save/load
-models/pod_brain.npz saved brain (created after your first round)
+  config.py               sizes, speeds, colors, FPS
+  game.py                 main loop and scenes
+  selfplay.py             one headless training round (runs in worker processes)
+  scenes/                 landing, play / watch, game over (with learning chart)
+  entities/               Fish, Shark, drawing
+  world/arena.py          border
+  world/physics.py        no-overlap rule, eating, spawning
+  world/sensors.py        the fish's 31 inputs
+  world/shark_sensors.py  the AI shark's 29 inputs
+  world/scripted_sharks.py human-style hunters (training opponents and benchmark)
+  world/simulation.py     one round: decisions, rewards, collisions
+  brains/ppo.py           policy network, PPO update, Adam
+  brains/learner.py       fish brain: behaviors, rewards, human-play learning, save/load
+  brains/shark_brain.py   AI shark brain, rewards, controller
+models/
+  pod_brain.npz           the fish brain the game uses (best so far)
+  shark_brain.npz         the AI shark (used by Watch AI)
+  checkpoints/ logs/ backups/   training state, CSV logs and graphs, backups (not in git)
 ```

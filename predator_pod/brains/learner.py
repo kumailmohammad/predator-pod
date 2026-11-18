@@ -1,4 +1,4 @@
-"""The fish brain and how it learns from your games.
+"""The fish brain: what it senses, what it can do, what it is rewarded for.
 
 Network (shared by every fish):
     31 senses -> 32 hidden (tanh) -> two heads
@@ -11,40 +11,41 @@ the selfish herd (moving into the middle of the group), the fountain dodge
 (splitting sideways around the attacker), protean zigzags, and the C-start
 fast escape (an instant turn plus a short burst of speed, then a cooldown).
 
-Learning: reinforcement learning (policy gradient, PPO-style updates).
-    About 7 times a second each fish picks a behavior (and maybe a burst).
-    After each decision it gets a reward:
-        + being far from the shark          (the main goal)
-        + being near the school's center    (small, so it can wander and rejoin)
-        + being in a group, most of all when the shark is close
-        - being alone while the shark is close
-        - being near a wall, or in a corner (worse while chased)
-        - being eaten                       (big penalty)
-    When your round ends, every decision is scored by the rewards that
-    followed it ("return"). Decisions that did better than average become
-    more likely, worse ones less likely. The round's data is reused for a few
-    passes of small, clipped updates (PPO) so one round teaches a lot without
-    the network changing too wildly.
+It learns two ways, both with PPO (see ppo.py):
+  * automatically, from self-play against the AI shark (train.py)
+  * from every round a human plays (Learner.learn, called by the game)
 
-Stopping: once the rolling average survival time stops improving for
-PATIENCE rounds (after at least MIN_ROUNDS rounds), the brain is frozen and
-saved. From then on fish always pick their best behavior.
+Rewards (per decision, about 7 per second):
+    + being far from the shark          (the main goal)
+    + being near the school's center    (small, so it can wander and rejoin)
+    + being in a group, most of all when the shark is close
+    - being alone while the shark is close
+    - being near a wall, or in a corner (worse while chased)
+    - being eaten                       (big penalty)
+
+Human-play stopping: once the rolling average survival time of human rounds
+stops improving for PATIENCE rounds (after at least MIN_ROUNDS rounds), the
+brain stops learning from human play and fish always pick their best behavior.
 
 Upgrades: a brain saved by an older version (fewer senses or behaviors) is
-widened on load. New inputs get zero weights and new behaviors start very
-unlikely, so the fish keep everything they learned and discover the new
-abilities gradually.
+widened on load. New inputs get zero weights and new behaviors start at about
+NEW_ACTION_SHARE of the choices, so the fish keep everything they learned.
 """
 
 import os
 import shutil
+import time
 from pathlib import Path
 
 import numpy as np
 
+from predator_pod.brains.ppo import PPOPolicy, Trajectories
 from predator_pod.world.sensors import N_FEATURES
 
-DEFAULT_PATH = Path(__file__).resolve().parents[2] / "models" / "pod_brain.npz"
+MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
+DEFAULT_PATH = MODELS_DIR / "pod_brain.npz"
+TRAINING_LOCK = MODELS_DIR / ".training.lock"
+LOCK_FRESH_SECONDS = 300      # a lock not touched for this long is treated as stale
 VERSION = 2
 
 N_INPUTS = N_FEATURES
@@ -81,11 +82,8 @@ R_EATEN = -10.0
 
 GAMMA = 0.95                  # how much future rewards count (per decision)
 LEARNING_RATE = 0.003
-ENTROPY_BONUS = 0.01          # keeps some exploration so it doesn't lock in early
-GRAD_CLIP = 1.0
-EPOCHS = 10                   # passes over one round's data
-BATCH_SIZE = 256
-CLIP = 0.2                    # PPO: max change in action probability per update
+HUMAN_EPOCHS = 10             # passes over one human round's data
+HUMAN_BATCH = 256
 
 NEW_ACTION_SHARE = 0.10       # after an upgrade, new behaviors together start at ~10%
 NEW_BURST_BIAS = -4.0         # bursts start rare (~2%)
@@ -95,6 +93,8 @@ IMPROVE_TOLERANCE = 0.03      # rolling average must beat the best by 3%
 PATIENCE = 10                 # rounds without improvement -> converged
 MIN_ROUNDS = 20
 MIN_ROUND_SECONDS = 5.0       # shorter rounds (a quick Esc) are ignored
+
+Episode = Trajectories        # one trajectory per fish
 
 
 def threat_level(shark_dist):
@@ -113,103 +113,44 @@ def reward(shark_dist, pod_dist, wall_dist, crowd_count, corner):
     return r
 
 
-def _sigmoid(y):
-    return 1.0 / (1.0 + np.exp(-np.clip(y, -30, 30)))
+def training_running():
+    """True while train.py is running (it keeps the lock file fresh)."""
+    try:
+        return time.time() - TRAINING_LOCK.stat().st_mtime < LOCK_FRESH_SECONDS
+    except OSError:
+        return False
 
 
-class Episode:
-    """Everything the fish did in one round, for learning at the end."""
-
-    def __init__(self, n_fish):
-        self.x = [[] for _ in range(n_fish)]
-        self.a = [[] for _ in range(n_fish)]
-        self.b = [[] for _ in range(n_fish)]      # burst chosen (0/1)
-        self.ready = [[] for _ in range(n_fish)]  # burst was available
-        self.p = [[] for _ in range(n_fish)]      # probability of the whole choice
-        self.r = [[] for _ in range(n_fish)]
-
-    def decide(self, i, x, a, b, ready, p):
-        self.x[i].append(x)
-        self.a[i].append(a)
-        self.b[i].append(b)
-        self.ready[i].append(ready)
-        self.p[i].append(p)
-        self.r[i].append(0.0)
-
-    def reward(self, i, r):
-        if self.r[i]:
-            self.r[i][-1] += r
-
-
-class Learner:
-    PARAMS = ("w1", "b1", "w2", "b2", "w3", "b3")
+class Learner(PPOPolicy):
+    """The fish brain plus its human-play learning record and file storage."""
 
     def __init__(self, path=DEFAULT_PATH, seed=None):
-        self.path = Path(path)
-        self.rng = np.random.default_rng(seed)
+        super().__init__(N_INPUTS, N_HIDDEN, N_ACTIONS, yes_no_head=True,
+                         learning_rate=LEARNING_RATE, seed=seed)
+        self.path = Path(path) if path else None
         self.upgraded_from = None
         self.reset(save=False)
 
-    # ----- network ---------------------------------------------------------
-    def forward(self, x):
-        h = np.tanh(x @ self.w1 + self.b1)
-        z = h @ self.w2 + self.b2
-        z -= z.max(1, keepdims=True)
-        p = np.exp(z)
-        p /= p.sum(1, keepdims=True)
-        y = h @ self.w3 + self.b3[0]
-        return h, p, y, _sigmoid(y)
+    @classmethod
+    def from_weights(cls, weights, seed=None):
+        """A file-less brain for worker processes."""
+        brain = cls(path=None, seed=seed)
+        brain.set_weights(weights)
+        return brain
 
-    def act(self, features, ready):
-        """Pick a behavior (0..13) and a burst decision for every fish.
+    def act(self, features, ready, greedy=None):
+        """Pick a behavior and a burst decision for every fish."""
+        return self.sample(features, ready, self.converged if greedy is None else greedy)
 
-        ready: bool array, whether each fish's fast-start is available.
-        Returns (actions, bursts, probability of that whole choice).
-        """
-        _, p, _, q = self.forward(features)
-        n = len(p)
-        if self.converged:
-            a = p.argmax(1)
-            b = (q > 0.5) & ready
-        else:
-            u = self.rng.random((n, 1))
-            a = np.minimum((p.cumsum(1) < u).sum(1), N_ACTIONS - 1)
-            b = (self.rng.random(n) < q) & ready
-        pb = np.where(ready, np.where(b, q, 1.0 - q), 1.0)
-        return a, b, p[np.arange(n), a] * pb
-
-    # ----- learning --------------------------------------------------------
+    # ----- learning from a human round --------------------------------------
     def learn(self, episode, survival_times, round_seconds, stats=None):
-        """One update from a finished round. Returns True if it learned."""
-        if self.converged or round_seconds < MIN_ROUND_SECONDS:
+        """One update from a finished human round. Returns True if it learned."""
+        if self.converged or round_seconds < MIN_ROUND_SECONDS or training_running():
             return False
-        xs, acts, bs, rds, olds, rets = [], [], [], [], [], []
-        for x, a, b, rd, p, r in zip(episode.x, episode.a, episode.b, episode.ready,
-                                     episode.p, episode.r):
-            if not r:
-                continue
-            g, run = np.zeros(len(r)), 0.0
-            for t in range(len(r) - 1, -1, -1):
-                run = r[t] + GAMMA * run
-                g[t] = run
-            xs += x; acts += a; bs += b; rds += rd; olds += p; rets.append(g)
-        if not xs:
+        batch = episode.batch(GAMMA)
+        if batch is None:
             return False
-        x = np.array(xs)
-        a = np.array(acts)
-        b = np.array(bs, dtype=np.float64)
-        rd = np.array(rds, dtype=np.float64)
-        old_p = np.array(olds)
-        g = np.concatenate(rets)
-        adv = (g - g.mean()) / (g.std() + 1e-8)
-
-        n = len(x)
-        for _ in range(EPOCHS):
-            order = self.rng.permutation(n)
-            for start in range(0, n, BATCH_SIZE):
-                idx = order[start:start + BATCH_SIZE]
-                self._ppo_step(x[idx], a[idx], b[idx], rd[idx], old_p[idx], adv[idx])
-
+        self.ppo_update(batch, HUMAN_EPOCHS, HUMAN_BATCH)
         self.rounds += 1
         self.history.append(float(np.mean(survival_times)))
         stats = stats or {}
@@ -218,41 +159,6 @@ class Learner:
         self._check_convergence()
         self.save()
         return True
-
-    def _ppo_step(self, x, a, b, ready, old_p, adv):
-        h, p, y, q = self.forward(x)
-        n = len(a)
-        onehot = np.eye(N_ACTIONS)[a]
-        pb = np.where(ready > 0, np.where(b > 0, q, 1.0 - q), 1.0)
-        ratio = p[np.arange(n), a] * pb / (old_p + 1e-12)
-        # PPO clip: stop pushing a choice once its probability moved > CLIP.
-        active = ~(((adv > 0) & (ratio > 1 + CLIP)) | ((adv < 0) & (ratio < 1 - CLIP)))
-        coef = active * adv * ratio
-        # Movement head: gradient of ratio*adv + ENTROPY_BONUS*entropy w.r.t. logits.
-        logp = np.log(p + 1e-12)
-        entropy = -(p * logp).sum(1, keepdims=True)
-        gz = coef[:, None] * (onehot - p) + ENTROPY_BONUS * (-p * (logp + entropy))
-        # Burst head (only where a burst was possible).
-        gy = ready * (coef * (b - q) + ENTROPY_BONUS * (-q * (1 - q) * np.clip(y, -30, 30)))
-        gz /= n
-        gy /= n
-        grads = {"w2": h.T @ gz, "b2": gz.sum(0), "w3": h.T @ gy, "b3": np.array([gy.sum()])}
-        gh = (gz @ self.w2.T + gy[:, None] * self.w3[None, :]) * (1 - h * h)
-        grads["w1"] = x.T @ gh
-        grads["b1"] = gh.sum(0)
-        self._adam_ascent(grads)
-
-    def _adam_ascent(self, grads, b1=0.9, b2=0.999):
-        norm = np.sqrt(sum((g * g).sum() for g in grads.values()))
-        scale = min(1.0, GRAD_CLIP / (norm + 1e-12))
-        self.adam_t += 1
-        for k, g in grads.items():
-            g = g * scale
-            self.m[k] = b1 * self.m[k] + (1 - b1) * g
-            self.v[k] = b2 * self.v[k] + (1 - b2) * g * g
-            mh = self.m[k] / (1 - b1 ** self.adam_t)
-            vh = self.v[k] / (1 - b2 ** self.adam_t)
-            setattr(self, k, getattr(self, k) + LEARNING_RATE * mh / (np.sqrt(vh) + 1e-8))
 
     def _check_convergence(self):
         if len(self.history) < ROLLING_WINDOW:
@@ -268,15 +174,7 @@ class Learner:
 
     # ----- save / load -----------------------------------------------------
     def reset(self, save=True):
-        self.w1 = self.rng.normal(0, 1 / np.sqrt(N_INPUTS), (N_INPUTS, N_HIDDEN))
-        self.b1 = np.zeros(N_HIDDEN)
-        self.w2 = self.rng.normal(0, 0.01, (N_HIDDEN, N_ACTIONS))   # starts ~uniform
-        self.b2 = np.zeros(N_ACTIONS)
-        self.w3 = np.zeros(N_HIDDEN)
-        self.b3 = np.array([NEW_BURST_BIAS])
-        self.m = {k: np.zeros_like(getattr(self, k)) for k in self.PARAMS}
-        self.v = {k: np.zeros_like(getattr(self, k)) for k in self.PARAMS}
-        self.adam_t = 0
+        self.init_params(NEW_BURST_BIAS)
         self.rounds = 0
         self.history = []
         self.school_history = []
@@ -284,9 +182,18 @@ class Learner:
         self.best_rolling = 0.0
         self.stale = 0
         self.converged = False
+        self.selfplay_rounds = 0
         self.upgraded_from = None
         if save:
             self.save()
+
+    def backup_and_reset(self):
+        """The landing page's Reset brain: keep a copy first, then start over."""
+        if self.path and self.path.exists():
+            backup = MODELS_DIR / "backups" / "pod_brain_before_reset.npz"
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(self.path, backup)
+        self.reset()
 
     @classmethod
     def load_or_new(cls, path=DEFAULT_PATH):
@@ -304,21 +211,16 @@ class Learner:
                 learner.reset(save=False)
         return learner
 
-    def load(self):
-        with np.load(self.path) as f:          # read everything, then close (Windows locks)
+    def load(self, path=None):
+        with np.load(path or self.path) as f:      # read everything, then close (Windows locks)
             d = {k: f[k] for k in f.files}
         n_in, n_hid, n_act = (int(v) for v in d["layers"])
         if n_hid != N_HIDDEN or n_in > N_INPUTS or n_act > N_ACTIONS:
             raise ValueError("saved brain has an incompatible network shape")
-        for k in ("w1", "b1", "w2", "b2"):
+        for k in ("w1", "b1", "w2", "b2") + (("w3", "b3") if "w3" in d else ()):
             setattr(self, k, d[k].astype(np.float64))
             self.m[k] = d["m_" + k].astype(np.float64)
             self.v[k] = d["v_" + k].astype(np.float64)
-        if "w3" in d:
-            for k in ("w3", "b3"):
-                setattr(self, k, d[k].astype(np.float64))
-                self.m[k] = d["m_" + k].astype(np.float64)
-                self.v[k] = d["v_" + k].astype(np.float64)
         self.adam_t = int(d["adam_t"])
         self.rounds = int(d["rounds"])
         self.history = list(d["history"].astype(np.float64))
@@ -329,6 +231,7 @@ class Learner:
         self.best_rolling = float(d["best_rolling"])
         self.stale = int(d["stale"])
         self.converged = bool(d["converged"])
+        self.selfplay_rounds = int(d["selfplay_rounds"]) if "selfplay_rounds" in d else 0
         if n_in < N_INPUTS or n_act < N_ACTIONS or "w3" not in d:
             self._widen(n_in, n_act, has_burst="w3" in d)
 
@@ -371,25 +274,24 @@ class Learner:
             lo, hi = (c, hi) if share < NEW_ACTION_SHARE else (lo, c)
         return (lo + hi) / 2
 
-    def save(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(self.path.stem + ".tmp.npz")
-        data = {k: getattr(self, k) for k in self.PARAMS}
-        data.update({"m_" + k: self.m[k] for k in self.PARAMS})
-        data.update({"v_" + k: self.v[k] for k in self.PARAMS})
+    def save(self, path=None):
+        path = Path(path or self.path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.stem + ".tmp.npz")
         np.savez(
-            tmp, version=VERSION, layers=np.array([N_INPUTS, N_HIDDEN, N_ACTIONS]),
-            adam_t=self.adam_t, rounds=self.rounds, history=np.array(self.history),
+            tmp, version=VERSION, rounds=self.rounds, history=np.array(self.history),
             school_history=np.array(self.school_history, dtype=np.float64),
             wall_death_history=np.array(self.wall_death_history, dtype=np.float64),
-            best_rolling=self.best_rolling, stale=self.stale, converged=self.converged, **data,
+            best_rolling=self.best_rolling, stale=self.stale, converged=self.converged,
+            selfplay_rounds=self.selfplay_rounds, **self.state_arrays(),
         )
-        os.replace(tmp, self.path)
+        os.replace(tmp, path)
 
     def status_text(self):
+        auto = f", {self.selfplay_rounds:,} self-play rounds" if self.selfplay_rounds else ""
         if self.converged:
-            return f"Fish brain: trained - converged after {self.rounds} rounds (frozen)"
+            return f"Fish brain: trained - human learning finished after {self.rounds} rounds{auto}"
         if self.rounds == 0:
-            return "Fish brain: untrained - it learns after every round you play"
-        return (f"Fish brain: learning - {self.rounds} rounds played, "
+            return f"Fish brain: learns after every round you play{auto}"
+        return (f"Fish brain: learning - {self.rounds} human rounds{auto}, "
                 f"no improvement for {self.stale}/{PATIENCE}")
