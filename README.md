@@ -6,6 +6,13 @@ The fish learn two ways:
 - **Automatically** (`python train.py`): an AI shark with its own neural network hunts the fish in thousands of headless rounds. Both sides learn at the same time, so each keeps forcing the other to improve.
 - **From your games:** every round you play also updates the fish brain.
 
+## Quick start: play in 3 steps
+1. **Install** Python 3.12 or newer, then run the commands below.
+2. **Start the game** with `python main.py`.
+3. **Pick a pod size** (10–30 fish) and press **Play**. Steer the shark with the mouse, and eat the whole pod.
+
+Want to see the trained AI shark instead? Press **Watch AI** on the landing page.
+
 ## Run it
 ```bash
 python -m venv .venv
@@ -15,6 +22,14 @@ python main.py          # play (or "Watch AI" to see the AI shark hunt the train
 python train.py         # automatic training, 30 min (Ctrl+C stops; run again to resume)
 python progress.py      # graphs of the prey and shark training (--live to auto-refresh)
 ```
+
+## Important things to know
+- **The game ships with a trained fish brain** (`models/pod_brain.npz`), so the fish are already hard to catch. You don't need to train before playing.
+- **Your games train the fish too.** Each round you finish updates the brain, unless `train.py` is running at the same time. In that case the game says so and doesn't save the round, so it can't overwrite the trainer's work.
+- **Training is safe to stop.** Ctrl+C stops `train.py` cleanly and keeps the best brain. Run `python train.py` again to resume.
+- **Reset brain** on the landing page starts the fish from scratch, but first it copies the old brain to `models/backups/`.
+- **Watch the progress** with `python progress.py` (add `--live` to refresh while training runs).
+- **Large files are tracked in git.** The brains (`models/pod_brain.npz` and `models/shark_brain.npz`) are committed. Checkpoints, logs and backups are not.
 
 ## Controls
 | Input | Action |
