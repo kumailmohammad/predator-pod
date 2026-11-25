@@ -1,0 +1,176 @@
+{
+  "main.py": {
+    "mtime": 1794391601.163149,
+    "seen": 1795589435.8716133,
+    "ast_hash": "4a6a9a42c8d9c4a7f79711493a0f3ec7",
+    "semantic_hash": "4a6a9a42c8d9c4a7f79711493a0f3ec7"
+  },
+  "predator_pod/__init__.py": {
+    "mtime": 1794391585.9368882,
+    "seen": 1795589435.8716133,
+    "ast_hash": "6b69ffe9f159889753551b71cf736ef4",
+    "semantic_hash": "6b69ffe9f159889753551b71cf736ef4"
+  },
+  "predator_pod/brains/__init__.py": {
+    "mtime": 1794391590.1580596,
+    "seen": 1795589435.8716133,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "predator_pod/brains/learner.py": {
+    "mtime": 1794988629.6974947,
+    "seen": 1795589435.8716133,
+    "ast_hash": "8fe826041c2aeaee2ee6848d5c15e1bf",
+    "semantic_hash": "8fe826041c2aeaee2ee6848d5c15e1bf"
+  },
+  "predator_pod/brains/ppo.py": {
+    "mtime": 1794988106.8356733,
+    "seen": 1795589435.8716133,
+    "ast_hash": "b1bd2b2cada913f9041d97f93246eaba",
+    "semantic_hash": "b1bd2b2cada913f9041d97f93246eaba"
+  },
+  "predator_pod/brains/shark_brain.py": {
+    "mtime": 1794988229.8788104,
+    "seen": 1795589435.8716133,
+    "ast_hash": "dee966768356a8a3009b45fb5ee48b2d",
+    "semantic_hash": "dee966768356a8a3009b45fb5ee48b2d"
+  },
+  "predator_pod/config.py": {
+    "mtime": 1794988656.8982422,
+    "seen": 1795589435.8716133,
+    "ast_hash": "00db1ca8672f015487770f389b55248b",
+    "semantic_hash": "00db1ca8672f015487770f389b55248b"
+  },
+  "predator_pod/entities/__init__.py": {
+    "mtime": 1794391592.702708,
+    "seen": 1795589435.8716133,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "predator_pod/entities/drawing.py": {
+    "mtime": 1794391593.5714543,
+    "seen": 1795589435.8716133,
+    "ast_hash": "7ba4377ba34571fb7bec1eb6d7a09700",
+    "semantic_hash": "7ba4377ba34571fb7bec1eb6d7a09700"
+  },
+  "predator_pod/entities/fish.py": {
+    "mtime": 1794910507.9392378,
+    "seen": 1795589435.8716133,
+    "ast_hash": "25f2182ca2b854e0379d003dde2402f5",
+    "semantic_hash": "25f2182ca2b854e0379d003dde2402f5"
+  },
+  "predator_pod/entities/shark.py": {
+    "mtime": 1794988242.1907196,
+    "seen": 1795589435.8716133,
+    "ast_hash": "c381565aba501d0380673a7e0f59c42a",
+    "semantic_hash": "c381565aba501d0380673a7e0f59c42a"
+  },
+  "predator_pod/game.py": {
+    "mtime": 1795075893.322619,
+    "seen": 1795589435.8716133,
+    "ast_hash": "7f59e4be563e6448324c5c90d01bd4b2",
+    "semantic_hash": "7f59e4be563e6448324c5c90d01bd4b2"
+  },
+  "predator_pod/scenes/__init__.py": {
+    "mtime": 1794391596.1210833,
+    "seen": 1795589435.8716133,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "predator_pod/scenes/game_over.py": {
+    "mtime": 1794988629.7025158,
+    "seen": 1795589435.8716133,
+    "ast_hash": "54caf766823ca4bfe2b82dd4a0a33def",
+    "semantic_hash": "54caf766823ca4bfe2b82dd4a0a33def"
+  },
+  "predator_pod/scenes/landing.py": {
+    "mtime": 1794988629.6943846,
+    "seen": 1795589435.8716133,
+    "ast_hash": "d1d1b6382f75dacc474947c8e7cebaf5",
+    "semantic_hash": "d1d1b6382f75dacc474947c8e7cebaf5"
+  },
+  "predator_pod/scenes/play.py": {
+    "mtime": 1795075897.5662518,
+    "seen": 1795589435.873044,
+    "ast_hash": "6aa025969e4d5e1760366241f4526689",
+    "semantic_hash": "6aa025969e4d5e1760366241f4526689"
+  },
+  "predator_pod/scenes/ui.py": {
+    "mtime": 1794391596.9561465,
+    "seen": 1795589435.873044,
+    "ast_hash": "84214ceee3fae6ec3fa24a2e159b4307",
+    "semantic_hash": "84214ceee3fae6ec3fa24a2e159b4307"
+  },
+  "predator_pod/selfplay.py": {
+    "mtime": 1794988497.309302,
+    "seen": 1795589435.873044,
+    "ast_hash": "c2c16bd11168973abd4a3912dfaa58bd",
+    "semantic_hash": "c2c16bd11168973abd4a3912dfaa58bd"
+  },
+  "predator_pod/world/__init__.py": {
+    "mtime": 1794391586.7860718,
+    "seen": 1795589435.873044,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "predator_pod/world/arena.py": {
+    "mtime": 1794391587.652607,
+    "seen": 1795589435.873044,
+    "ast_hash": "c36ae1cb14e3792ccb7ad0587297d556",
+    "semantic_hash": "c36ae1cb14e3792ccb7ad0587297d556"
+  },
+  "predator_pod/world/physics.py": {
+    "mtime": 1794391588.4789908,
+    "seen": 1795589435.873044,
+    "ast_hash": "a9a987fe6ff99da798c780e778edb99c",
+    "semantic_hash": "a9a987fe6ff99da798c780e778edb99c"
+  },
+  "predator_pod/world/scripted_sharks.py": {
+    "mtime": 1794988230.7201204,
+    "seen": 1795589435.873044,
+    "ast_hash": "65041c9cfb8024632a894677696880d6",
+    "semantic_hash": "65041c9cfb8024632a894677696880d6"
+  },
+  "predator_pod/world/sensors.py": {
+    "mtime": 1794988656.901321,
+    "seen": 1795589435.873044,
+    "ast_hash": "30686be85924a530fcdcc8654434e4a9",
+    "semantic_hash": "30686be85924a530fcdcc8654434e4a9"
+  },
+  "predator_pod/world/shark_sensors.py": {
+    "mtime": 1794988229.001111,
+    "seen": 1795589435.873044,
+    "ast_hash": "5729e75fe67741e44714d82587bbd8d6",
+    "semantic_hash": "5729e75fe67741e44714d82587bbd8d6"
+  },
+  "predator_pod/world/simulation.py": {
+    "mtime": 1794988254.3531861,
+    "seen": 1795589435.873044,
+    "ast_hash": "164595e03f471039245eb0ff7fc96aa5",
+    "semantic_hash": "164595e03f471039245eb0ff7fc96aa5"
+  },
+  "progress.py": {
+    "mtime": 1794988583.1997206,
+    "seen": 1795589435.873044,
+    "ast_hash": "dd2c3d3205cc49917c95200029906ba7",
+    "semantic_hash": "dd2c3d3205cc49917c95200029906ba7"
+  },
+  "train.py": {
+    "mtime": 1794988691.3906825,
+    "seen": 1795589435.873044,
+    "ast_hash": "d15272a77801347e3a109fbfbc2350d1",
+    "semantic_hash": "d15272a77801347e3a109fbfbc2350d1"
+  },
+  "README.md": {
+    "mtime": 1795075923.467414,
+    "seen": 1795589435.873044,
+    "ast_hash": "9ccef7dfbf03771decbbeeea3e4b5d18",
+    "semantic_hash": "9ccef7dfbf03771decbbeeea3e4b5d18"
+  },
+  "requirements.txt": {
+    "mtime": 1794988656.904392,
+    "seen": 1795589435.873044,
+    "ast_hash": "98ab7fbe5f631c4c501c26044487a140",
+    "semantic_hash": "98ab7fbe5f631c4c501c26044487a140"
+  }
+}

@@ -25,7 +25,7 @@ python progress.py      # graphs of the prey and shark training (--live to auto-
 
 ## Important things to know
 - **The game ships with a trained fish brain** (`models/pod_brain.npz`), so the fish are already hard to catch. You don't need to train before playing.
-- **Your games train the fish too.** Each round you finish updates the brain, unless `train.py` is running at the same time. In that case the game says so and doesn't save the round, so it can't overwrite the trainer's work.
+- **Your games train the fish too, but only complete rounds.** A round teaches the fish only when you eat the whole pod. If you press **Leave game** (or Esc, or close the window) midway, nothing is learned. If `train.py` is running at the same time, the game says so and doesn't save the round, so it can't overwrite the trainer's work.
 - **Training is safe to stop.** Ctrl+C stops `train.py` cleanly and keeps the best brain. Run `python train.py` again to resume.
 - **Reset brain** on the landing page starts the fish from scratch, but first it copies the old brain to `models/backups/`.
 - **Watch the progress** with `python progress.py` (add `--live` to refresh while training runs).
@@ -36,7 +36,7 @@ python progress.py      # graphs of the prey and shark training (--live to auto-
 |---|---|
 | Mouse / touchpad | Steer the shark toward the cursor |
 | Left / Right or A / D | Turn the shark |
-| Esc | Back to menu (a round of 5 s or more still counts for learning) |
+| **Leave game** button (top right) or Esc | Back to menu. A round you leave early is never learned from |
 | Landing page | Pick 10–30 fish, Play, Watch AI, Reset brain (keeps a backup in `models/backups/`) |
 
 The shark never stops swimming. It keeps its last direction, slows down in sharp turns so it can turn tightly, and slides along walls.

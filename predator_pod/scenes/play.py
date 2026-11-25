@@ -3,7 +3,7 @@ import pygame
 from predator_pod import config
 from predator_pod.brains.learner import training_running
 from predator_pod.brains.shark_brain import AISharkController, SharkBrain
-from predator_pod.scenes.ui import draw_text, font
+from predator_pod.scenes.ui import Button, draw_text, font
 from predator_pod.world.scripted_sharks import ScriptedShark
 from predator_pod.world.simulation import World
 
@@ -30,18 +30,29 @@ class PlayScene:
         self.world = World(game.learner, fish_count, controller)
         self.finished = False
         self.training = training_running()
+        right = self.world.arena.rect.right
+        self.leave = Button("Leave game", (right - 60, 52), size=(120, 28), font_size=22)
 
     def _finish_round(self):
-        """Learn from this round (once). Returns True if the brain was updated."""
+        """Learn from this round (once). Returns True if the brain was updated.
+
+        Only called when every fish has been eaten, so only complete rounds teach the brain.
+        """
         if self.finished or self.watch:
             return False
         self.finished = True
         return self.world.learn()
 
+    def leave_round(self):
+        """Leave early. The round is discarded and never teaches the brain."""
+        self.finished = True
+        self.game.show_landing(self.fish_count)
+
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self._finish_round()
-            self.game.show_landing(self.fish_count)
+        if self.leave.clicked(event):
+            self.leave_round()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.leave_round()
 
     def update(self, dt):
         if self.watch:
@@ -81,12 +92,13 @@ class PlayScene:
         fps_text = f"FPS: {self.game.clock.get_fps():.0f}"
         draw_text(surface, fps_text, 26, config.COLOR_TEXT_DIM, topleft=(right - font(26).size(fps_text)[0], y + 2))
         if self.watch:
-            status = f"Watching: {self.shark_label} vs the trained fish  -  Esc for menu"
+            status = f"Watching: {self.shark_label} vs the trained fish  -  nothing is learned here"
         elif self.training:
             status = "Training (train.py) is running - this round won't be saved to the brain"
         else:
             status = self.game.learner.status_text()
         draw_text(surface, status, 22, config.COLOR_TEXT_DIM, center=(config.WINDOW_WIDTH // 2, y + 36))
+        self.leave.draw(surface)
 
 
 def format_time(seconds):

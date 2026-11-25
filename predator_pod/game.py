@@ -54,10 +54,7 @@ class Game:
             dt = min(self.clock.tick(config.FPS) / 1000.0, config.MAX_DT)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    # Closing the window mid-round still learns from that round.
-                    finish = getattr(self.scene, "_finish_round", None)
-                    if finish:
-                        finish()
+                    # Closing the window mid-round is leaving early: nothing is learned.
                     self.running = False
                 else:
                     self.scene.handle_event(event)
